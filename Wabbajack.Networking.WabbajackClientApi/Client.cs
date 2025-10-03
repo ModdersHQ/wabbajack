@@ -83,6 +83,10 @@ public class Client
 
     public async Task SendMetric(string action, string subject, bool rebound = true)
     {
+        // Telemetry disabled for Wabbajack Unlocked fork
+        return;
+        
+        /*
         if (!_inited)
         {
             _logger.LogInformation("Init Client: {Id}", (await _token.Get())?.MetricsKey);
@@ -98,6 +102,7 @@ public class Client
             await SendMetric("rebound", "Error", false);
             Environment.Exit(0);
         }
+        */
     }
 
     public async Task<ServerAllowList> LoadDownloadAllowList()

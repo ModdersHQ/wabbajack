@@ -14,8 +14,8 @@
     xmlns:ic="clr-namespace:FluentIcons.Wpf;assembly=FluentIcons.Wpf"
     xmlns:math="http://hexinnovation.com/math" xmlns:controls="http://schemas.sdl.com/xaml"
     d:DataContext="{d:DesignInstance local:InstallationVM}"
-    d:DesignHeight="500"
-    d:DesignWidth="800"
+    d:DesignHeight="600"
+    d:DesignWidth="900"
     x:TypeArguments="local:InstallationVM"
     mc:Ignorable="d">
     <UserControl.Resources>
@@ -57,47 +57,96 @@
     <Grid>
         <Grid x:Name="SetupGrid">
             <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="1.2*" />
                 <ColumnDefinition Width="16" />
-                <ColumnDefinition Width="3.5*" />
+                <ColumnDefinition Width="3*" />
             </Grid.ColumnDefinitions>
             <Grid>
                 <Grid.RowDefinitions>
-                    <RowDefinition Height="Auto" />
-                    <RowDefinition Height="Auto" />
                     <RowDefinition Height="*" />
                     <RowDefinition Height="Auto" />
                 </Grid.RowDefinitions>
+                
+                <ScrollViewer Grid.Row="0" VerticalScrollBarVisibility="Auto">
+                    <StackPanel>
+                        <StackPanel x:Name="InstallationLocationPanel" Style="{StaticResource Panel}">
+                            <TextBlock Style="{StaticResource TitleStyle}" Text="Installation Location" />
+                            <TextBlock Style="{StaticResource DescriptionStyle}">
+                                The folder where the list will be installed into.<LineBreak />
+                                Choose an empty folder outside Windows-protected areas.
+                                Using an SSD is highly recommended for optimal performance.
+                            </TextBlock>
+                            <local:FilePicker x:Name="InstallationLocationPicker"
+                                              Style="{StaticResource PickerStyle}"
+                                              Icon="Folder"
+                                              ToolTip="Path to the folder where the list will be installed to"
+                                              IsEnabled="{Binding LoadingLock.IsNotLoading}"/>
+                        </StackPanel>
 
-                <StackPanel x:Name="InstallationLocationPanel" Style="{StaticResource Panel}">
-                    <TextBlock Style="{StaticResource TitleStyle}" Text="Installation Location" />
-                    <TextBlock Style="{StaticResource DescriptionStyle}">
-                        The folder where the list will be installed into.<LineBreak />
-                        Choose an empty folder outside Windows-protected areas.
-                        Using an SSD is highly recommended for optimal performance.
-                    </TextBlock>
-                    <local:FilePicker x:Name="InstallationLocationPicker"
-                                      Style="{StaticResource PickerStyle}"
-                                      Icon="Folder"
-                                      ToolTip="Path to the folder where the list will be installed to"
-                                      IsEnabled="{Binding LoadingLock.IsNotLoading}"/>
-                </StackPanel>
+                        <StackPanel x:Name="GameFolderLocationPanel" Style="{StaticResource Panel}">
+                            <TextBlock Style="{StaticResource TitleStyle}" Text="Game Folder" />
+                            <TextBlock Style="{StaticResource DescriptionStyle}">
+                                The folder where the game is installed.<LineBreak />
+                                This is usually found in your Steam or other game launcher library folder.
+                                The folder should contain the game executable and data files.
+                            </TextBlock>
+                            <local:FilePicker x:Name="GameFolderPicker"
+                                              Style="{StaticResource PickerStyle}"
+                                              Icon="Folder"
+                                              ToolTip="Path to the folder where the game is installed"
+                                              IsEnabled="{Binding LoadingLock.IsNotLoading}" />
+                        </StackPanel>
 
-                <StackPanel x:Name="DownloadLocationPanel" Grid.Row="1" Style="{StaticResource Panel}">
-                    <TextBlock Style="{StaticResource TitleStyle}" Text="Downloads Location" />
-                    <TextBlock Style="{StaticResource DescriptionStyle}">
-                        The folder where the downloads will be stored.<LineBreak />
-                        By default these are stored in a subdirectory of the installation folder, but you can also use a shared folder so previous downloads are reused.
-                        Downloads can be deleted after installation.
-                    </TextBlock>
-                    <local:FilePicker x:Name="DownloadLocationPicker"
-                                      Style="{StaticResource PickerStyle}"
-                                      Icon="Folder"
-                                      ToolTip="Path to the folder where the mod archives will be downloaded to"
-                                      IsEnabled="{Binding LoadingLock.IsNotLoading}" />
-                </StackPanel>
+                        <StackPanel x:Name="SourceGameFoldersPanel" Style="{StaticResource Panel}">
+                            <TextBlock Style="{StaticResource TitleStyle}" Text="Source Game Folders" />
+                            <TextBlock Style="{StaticResource DescriptionStyle}">
+                                This modlist can use files from these other games if you have them installed.<LineBreak />
+                                Installation may fail without these games installed depending on the modlist.
+                            </TextBlock>
+                            <ItemsControl x:Name="SourceGamesList" ItemsSource="{Binding SourceGameFolders}">
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate>
+                                        <StackPanel Margin="0,4,0,4">
+                                            <TextBlock Text="{Binding GameName}" FontWeight="SemiBold" Margin="0,0,0,2"/>
+                                            <local:FilePicker x:Name="SourceGameFilePicker"
+                                                              PickerVM="{Binding FilePicker}"
+                                                              Style="{StaticResource PickerStyle}"
+                                                              Icon="Folder"
+                                                              ToolTip="{Binding ToolTip}"
+                                                              IsEnabled="{Binding DataContext.LoadingLock.IsNotLoading, RelativeSource={RelativeSource AncestorType=UserControl}}" />
+                                        </StackPanel>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                        </StackPanel>
 
-                <Grid Grid.Row="3">
+                        <StackPanel x:Name="DownloadLocationPanel" Style="{StaticResource Panel}">
+                            <TextBlock Style="{StaticResource TitleStyle}" Text="Downloads Location" />
+                            <TextBlock Style="{StaticResource DescriptionStyle}">
+                                The folder where the downloads will be stored.<LineBreak />
+                                By default these are stored in a subdirectory of the installation folder, but you can also use a shared folder so previous downloads are reused.
+                                Downloads can be deleted after installation.
+                            </TextBlock>
+                            <local:FilePicker x:Name="DownloadLocationPicker"
+                                              Style="{StaticResource PickerStyle}"
+                                              Icon="Folder"
+                                              ToolTip="Path to the folder where the mod archives will be downloaded to"
+                                              IsEnabled="{Binding LoadingLock.IsNotLoading}" />
+                        </StackPanel>
+                        
+                        <StackPanel x:Name="HashMatchingPanel" Style="{StaticResource Panel}">
+                            <CheckBox Content="Ignore Hash Mismatches" 
+                                      IsChecked="{Binding IgnoreHashMismatches}"
+                                      Margin="0,5,0,5"/>
+                            <TextBlock Style="{StaticResource DescriptionStyle}" TextWrapping="Wrap">
+                                When enabled, the installer will continue even if files don't match expected hashes.
+                                Use this option if you're experiencing hash errors with valid files or if you're updating an existing installation.
+                            </TextBlock>
+                        </StackPanel>
+                    </StackPanel>
+                </ScrollViewer>
+
+                <Grid Grid.Row="1">
                     <Grid.RowDefinitions>
                         <RowDefinition Height="Auto" />
                         <RowDefinition Height="Auto" />

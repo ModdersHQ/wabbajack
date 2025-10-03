@@ -74,7 +74,8 @@ public partial class MainWindow : MetroWindow
                 Application.Current.Shutdown();
             };
 
-            var _ = updater.Run();
+            // Disabled update checking for Wabbajack Unlocked fork
+            // var _ = updater.Run();
 
             // Bring window to the front if it isn't already
             this.Initialized += (s, e) =>

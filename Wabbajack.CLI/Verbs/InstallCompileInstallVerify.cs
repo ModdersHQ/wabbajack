@@ -32,11 +32,11 @@ public class InstallCompileInstallVerify
     private readonly DTOSerializer _dtos;
     private readonly IServiceProvider _serviceProvider;
     private readonly FileHashCache _cache;
-    private readonly GameLocator _gameLocator;
+    private readonly IGameLocator _gameLocator;
     private readonly CompilerSettingsInferencer _inferencer;
 
     public InstallCompileInstallVerify(ILogger<InstallCompileInstallVerify> logger, Client wjClient, DownloadDispatcher dispatcher, DTOSerializer dtos, 
-        FileHashCache cache, GameLocator gameLocator, IServiceProvider serviceProvider, CompilerSettingsInferencer inferencer)
+        FileHashCache cache, IGameLocator gameLocator, IServiceProvider serviceProvider, CompilerSettingsInferencer inferencer)
     {
         _logger = logger;
         _wjClient = wjClient;
@@ -53,10 +53,11 @@ public class InstallCompileInstallVerify
         {
             new OptionDefinition(typeof(AbsolutePath), "m", "machineUrl", "Machine url(s) to download"),
             new OptionDefinition(typeof(AbsolutePath), "d", "downloads", "Downloads path"),
-            new OptionDefinition(typeof(AbsolutePath), "o", "outputs", "Output paths")
+            new OptionDefinition(typeof(AbsolutePath), "o", "outputs", "Output paths"),
+            new OptionDefinition(typeof(AbsolutePath), "g", "gamefolder", "Game folder path")
         });
     
-    public async Task<int> Run(AbsolutePath outputs, AbsolutePath downloads, IEnumerable<string> machineUrls, CancellationToken token)
+    public async Task<int> Run(AbsolutePath outputs, AbsolutePath downloads, IEnumerable<string> machineUrls, AbsolutePath gamefolder, CancellationToken token)
     {
         foreach (var machineUrl in machineUrls)
         {
@@ -69,6 +70,12 @@ public class InstallCompileInstallVerify
             
             var modlist = await StandardInstaller.LoadFromFile(_dtos, wabbajackPath);
 
+            // Set the game folder in the UserSpecifiedGameLocator if available
+            if (_gameLocator is UserSpecifiedGameLocator userLocator)
+            {
+                userLocator.SetGameLocation(gamefolder);
+            }
+
             var installer = StandardInstaller.Create(_serviceProvider, new InstallerConfiguration
             {
                 Downloads = downloads,
@@ -76,7 +83,7 @@ public class InstallCompileInstallVerify
                 ModList = modlist,
                 Game = modlist.GameType,
                 ModlistArchive = wabbajackPath,
-                GameFolder = _gameLocator.GameLocation(modlist.GameType)
+                GameFolder = gamefolder.DirectoryExists() ? gamefolder : _gameLocator.GameLocation(modlist.GameType)
             });
 
             var result = await installer.Begin(token) == InstallResult.Succeeded;
@@ -119,7 +126,7 @@ public class InstallCompileInstallVerify
                 ModList = modlist2,
                 Game = modlist2.GameType,
                 ModlistArchive = inferredSettings.OutputFile,
-                GameFolder = _gameLocator.GameLocation(modlist2.GameType)
+                GameFolder = gamefolder.DirectoryExists() ? gamefolder : _gameLocator.GameLocation(modlist2.GameType)
             });
 
             result = await installer2.Begin(token) == InstallResult.Succeeded;

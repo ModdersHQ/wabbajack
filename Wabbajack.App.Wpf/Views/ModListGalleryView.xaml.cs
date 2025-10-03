@@ -50,8 +50,6 @@ public partial class ModListGalleryView : ReactiveUserControl<ModListGalleryVM>
 
             this.BindStrict(ViewModel, vm => vm.Search, x => x.SearchBox.Text)
                 .DisposeWith(dispose);
-            this.BindStrict(ViewModel, vm => vm.OnlyInstalled, x => x.OnlyInstalledCheckbox.IsChecked)
-                .DisposeWith(dispose);
             this.BindStrict(ViewModel, vm => vm.IncludeNSFW, x => x.IncludeNSFW.IsChecked)
                 .DisposeWith(dispose);
             this.BindStrict(ViewModel, vm => vm.IncludeUnofficial, x => x.IncludeUnofficial.IsChecked)
@@ -108,6 +106,17 @@ public partial class ModListGalleryView : ReactiveUserControl<ModListGalleryVM>
                 .DisposeWith(dispose);
 
             this.BindCommand(ViewModel, x => x.ResetFiltersCommand, x => x.ResetFiltersButton)
+                .DisposeWith(dispose);
+
+            // Sorting ComboBox binding
+            this.WhenAny(x => x.ViewModel.SelectedSortOption)
+                .Select(x => (int)x)
+                .BindToStrict(this, x => x.SortOptionComboBox.SelectedIndex)
+                .DisposeWith(dispose);
+
+            SortOptionComboBox.Events().SelectionChanged
+                .Select(_ => (ModListGalleryVM.SortOption)SortOptionComboBox.SelectedIndex)
+                .BindToStrict(ViewModel, x => x.SelectedSortOption)
                 .DisposeWith(dispose);
         });
     }

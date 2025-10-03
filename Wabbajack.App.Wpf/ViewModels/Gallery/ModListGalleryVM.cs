@@ -64,8 +64,6 @@ public class ModListGalleryVM : BackNavigatingVM, ICanLoadLocalFileVM
 
     [Reactive] public string Search { get; set; }
 
-    [Reactive] public bool OnlyInstalled { get; set; }
-
     [Reactive] public bool IncludeNSFW { get; set; }
 
     [Reactive] public bool IncludeUnofficial { get; set; }
@@ -73,6 +71,16 @@ public class ModListGalleryVM : BackNavigatingVM, ICanLoadLocalFileVM
     [Reactive] public string GameType { get; set; }
     [Reactive] public double MinModlistSize { get; set; }
     [Reactive] public double MaxModlistSize { get; set; }
+
+    public enum SortOption
+    {
+        Name,
+        Author,
+        DateUpdated,
+        InstallSize
+    }
+
+    [Reactive] public SortOption SelectedSortOption { get; set; } = SortOption.DateUpdated;
 
     public Dictionary<string, string> CommonlyWrongFormattedTags { get; set; } = new();
     [Reactive] public HashSet<ModListTag> AllTags { get; set; } = new();
@@ -102,7 +110,7 @@ public class ModListGalleryVM : BackNavigatingVM, ICanLoadLocalFileVM
 
     private readonly Client _wjClient;
     private readonly ILogger<ModListGalleryVM> _logger;
-    private readonly GameLocator _locator;
+    private readonly IGameLocator _locator;
     private readonly ModListDownloadMaintainer _maintainer;
     private readonly SettingsManager _settingsManager;
     private readonly CancellationToken _cancellationToken;
@@ -113,7 +121,7 @@ public class ModListGalleryVM : BackNavigatingVM, ICanLoadLocalFileVM
     public FilePickerVM LocalFilePicker { get; set; }
     public ICommand LoadLocalFileCommand { get; set; }
 
-    public ModListGalleryVM(ILogger<ModListGalleryVM> logger, Client wjClient, GameLocator locator,
+    public ModListGalleryVM(ILogger<ModListGalleryVM> logger, Client wjClient, IGameLocator locator,
         SettingsManager settingsManager, ModListDownloadMaintainer maintainer, CancellationToken cancellationToken, IServiceProvider serviceProvider)
         : base(logger)
     {
@@ -135,13 +143,13 @@ public class ModListGalleryVM : BackNavigatingVM, ICanLoadLocalFileVM
         });
 
         ResetFiltersCommand = ReactiveCommand.Create(() => {
-            OnlyInstalled = false;
             IncludeNSFW = false;
             IncludeUnofficial = false;
             Search = string.Empty;
             SelectedGameTypeEntry = GameTypeEntries?.FirstOrDefault();
             HasTags = new ObservableCollection<ModListTag>();
             HasMods = new ObservableCollection<ModListMod>();
+            SelectedSortOption = SortOption.DateUpdated;
         });
 
         LoadLocalFileCommand = ReactiveCommand.Create(() =>
@@ -159,7 +167,7 @@ public class ModListGalleryVM : BackNavigatingVM, ICanLoadLocalFileVM
             LoadModLists().FireAndForget();
             LoadSettings().FireAndForget();
             
-            this.WhenAnyValue(x => x.IncludeNSFW, x => x.IncludeUnofficial, x => x.OnlyInstalled, x => x.GameType)
+            this.WhenAnyValue(x => x.IncludeNSFW, x => x.IncludeUnofficial, x => x.GameType, x => x.SelectedSortOption)
                 .Subscribe(_ => SaveSettings().FireAndForget())
                 .DisposeWith(disposables);
 
@@ -175,14 +183,6 @@ public class ModListGalleryVM : BackNavigatingVM, ICanLoadLocalFileVM
                                    item.Metadata.Tags.Contains(txt);
                 });
 
-            var onlyInstalledGamesFilter = this.ObservableForProperty(vm => vm.OnlyInstalled)
-                .Select(v => v.Value)
-                .Select<bool, Func<GalleryModListMetadataVM, bool>>(onlyInstalled =>
-                {
-                    if (onlyInstalled == false) return _ => true;
-                    return item => _locator.IsInstalled(item.Metadata.Game);
-                })
-                .StartWith(_ => true);
 
             var includeUnofficialFilter = this.ObservableForProperty(vm => vm.IncludeUnofficial)
                 .Select(v => v.Value)
@@ -250,15 +250,36 @@ public class ModListGalleryVM : BackNavigatingVM, ICanLoadLocalFileVM
                 .StartWith(_ => true);
                                 
 
-            var searchSorter = this.WhenValueChanged(vm => vm.Search)
-                                    .Throttle(searchThrottle, RxApp.MainThreadScheduler)
-                                    .Select(s => SortExpressionComparer<GalleryModListMetadataVM>
-                                                 .Descending(m => m.Metadata.Title.StartsWith(s ?? "", StringComparison.InvariantCultureIgnoreCase))
-                                                 .ThenByDescending(m => m.Metadata.Title.Contains(s ?? "", StringComparison.InvariantCultureIgnoreCase))
-                                                 .ThenByDescending(m => !m.IsBroken));
+            var sorter = this.WhenAnyValue(vm => vm.Search, vm => vm.SelectedSortOption)
+                              .Throttle(searchThrottle, RxApp.MainThreadScheduler)
+                              .Select(tuple =>
+                              {
+                                  var (searchText, sortOption) = tuple;
+                                  
+                                  if (!string.IsNullOrWhiteSpace(searchText))
+                                  {
+                                      // Search results are prioritized, then apply selected sorting
+                                      IComparer<GalleryModListMetadataVM> baseComparer = SortExpressionComparer<GalleryModListMetadataVM>
+                                          .Descending(m => m.Metadata.Title.StartsWith(searchText, StringComparison.InvariantCultureIgnoreCase))
+                                          .ThenByDescending(m => m.Metadata.Title.Contains(searchText, StringComparison.InvariantCultureIgnoreCase));
+                                          
+                                      baseComparer = sortOption switch
+                                      {
+                                          SortOption.Name => baseComparer.ThenBy(m => m.Metadata.Title),
+                                          SortOption.Author => baseComparer.ThenBy(m => m.Metadata.Author),
+                                          SortOption.DateUpdated => baseComparer.ThenByDescending(m => m.Metadata.DateUpdated),
+                                          SortOption.InstallSize => baseComparer.ThenByDescending(m => m.Metadata.DownloadMetadata?.TotalSize ?? 0),
+                                          _ => baseComparer.ThenBy(m => m.Metadata.Title)
+                                      };
+                                      
+                                      return baseComparer.ThenByDescending(m => !m.IsBroken);
+                                  }
+                                  
+                                  return CreateSortComparer(sortOption)
+                                      .ThenByDescending(m => !m.IsBroken);
+                              });
             _modLists.Connect()
                 .Filter(searchTextPredicates)
-                .Filter(onlyInstalledGamesFilter)
                 .Filter(includeUnofficialFilter)
                 .Filter(includeNSFWFilter)
                 .Filter(gameFilter)
@@ -266,7 +287,7 @@ public class ModListGalleryVM : BackNavigatingVM, ICanLoadLocalFileVM
                 .Filter(maxModlistSizeFilter)
                 .Filter(includedTagsFilter)
                 .Filter(includedModsFilter)
-                .SortAndBind(out _filteredModLists, searchSorter)
+                .SortAndBind(out _filteredModLists, sorter)
                 .Subscribe(_ =>
                 {
                     if (!_filteringOnGame)
@@ -299,7 +320,7 @@ public class ModListGalleryVM : BackNavigatingVM, ICanLoadLocalFileVM
             GameType = GameType,
             IncludeNSFW = IncludeNSFW,
             IncludeUnofficial = IncludeUnofficial,
-            OnlyInstalled = OnlyInstalled,
+            SortOption = SelectedSortOption,
         });
         _savingSettings = false;
     }
@@ -313,7 +334,7 @@ public class ModListGalleryVM : BackNavigatingVM, ICanLoadLocalFileVM
             SelectedGameTypeEntry = GameTypeEntries?.FirstOrDefault(gte => gte.GameIdentifier.Equals(s.GameType));
             IncludeNSFW = s.IncludeNSFW;
             IncludeUnofficial = s.IncludeUnofficial;
-            OnlyInstalled = s.OnlyInstalled;
+            SelectedSortOption = s.SortOption;
             return Disposable.Empty;
         });
     }
@@ -403,5 +424,19 @@ public class ModListGalleryVM : BackNavigatingVM, ICanLoadLocalFileVM
             .OrderBy(gte => gte.GameMetaData.HumanFriendlyGameName)
             .Prepend(GameTypeEntry.GetAllGamesEntry(ModLists.Count))
             .ToList());
+    }
+
+    private SortExpressionComparer<GalleryModListMetadataVM> CreateSortComparer(SortOption sortOption)
+    {
+        var comparer = sortOption switch
+        {
+            SortOption.Name => SortExpressionComparer<GalleryModListMetadataVM>.Ascending(m => m.Metadata.Title),
+            SortOption.Author => SortExpressionComparer<GalleryModListMetadataVM>.Ascending(m => m.Metadata.Author),
+            SortOption.DateUpdated => SortExpressionComparer<GalleryModListMetadataVM>.Descending(m => m.Metadata.DateUpdated),
+            SortOption.InstallSize => SortExpressionComparer<GalleryModListMetadataVM>.Descending(m => m.Metadata.DownloadMetadata?.TotalSize ?? 0),
+            _ => SortExpressionComparer<GalleryModListMetadataVM>.Ascending(m => m.Metadata.Title)
+        };
+        
+        return comparer;
     }
 }

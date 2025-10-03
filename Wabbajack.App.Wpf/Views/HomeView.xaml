@@ -35,9 +35,9 @@
             <StackPanel Orientation="Horizontal">
                 <TextBlock Text="The home of " FontSize="24" />
                 <TextBlock x:Name="ModlistAmountTextBlock" Foreground="{StaticResource PrimaryBrush}" FontSize="24" />
-                <TextBlock Text=" ready-made modlists spanning " FontSize="24" />
+                <TextBlock Text=" sloppy modlists full of gooner shit for " FontSize="24" />
                 <TextBlock x:Name="GameAmountTextBlock" Foreground="{StaticResource PrimaryBrush}" FontSize="24" />
-                <TextBlock Text=" games." FontSize="24" />
+                <TextBlock Text=" games, most that you shouldn't play." FontSize="24" />
             </StackPanel>
         </Label>
         <Grid Grid.Row="2" Margin="0, 16, 0, 0">
@@ -59,11 +59,13 @@
                         <RowDefinition Height="Auto" />
                         <RowDefinition Height="Auto" />
                     </Grid.RowDefinitions>
-                    <TextBlock Grid.Column="0" Grid.Row="0" VerticalAlignment="Center" Text="Find a modlist that suits you" FontWeight="DemiBold" FontSize="24" Margin="0, 0, 0, 4" />
+                    <TextBlock Grid.Column="0" Grid.Row="0" VerticalAlignment="Center" Text="Browse mediocre modlists" FontWeight="DemiBold" FontSize="24" Margin="0, 0, 0, 4" />
                     <ic:SymbolIcon Grid.Row="0" Grid.Column="1" VerticalAlignment="Center" Symbol="Search" IconVariant="Filled" FontSize="28" Foreground="{StaticResource PrimaryBrush}" />
                     <TextBlock Grid.Column="0" Grid.Row="1" Grid.ColumnSpan="2" LineHeight="20" FontSize="13" VerticalAlignment="Center">
-                    Go through a series of questions to find a modlist that works for you through our<LineBreak />
-                     <Hyperlink Command="{Binding VisitModlistWizardCommand}">Wabbakinator quiz</Hyperlink>, or <Hyperlink Command="{Binding BrowseCommand}">navigate the gallery</Hyperlink> yourself and pick something fun.
+                    Try out our gay ass quiz to find which gooner modlist is for you:
+                        <Hyperlink Command="{Binding VisitModlistWizardCommand}">Wabbakinator quiz!</Hyperlink>
+                        <LineBreak />
+                        <Hyperlink Command="{Binding BrowseCommand}">Or, just navigate the gallery</Hyperlink>, lazy retard
                     </TextBlock>
                 </Grid>
             </Border>
@@ -77,11 +79,12 @@
                         <RowDefinition Height="Auto" />
                         <RowDefinition Height="Auto" />
                     </Grid.RowDefinitions>
-                    <TextBlock Grid.Column="0" Grid.Row="0" VerticalAlignment="Center" Text="Follow the install notes" FontWeight="DemiBold" FontSize="24" Margin="0, 0, 0, 4" />
+                    <TextBlock Grid.Column="0" Grid.Row="0" VerticalAlignment="Center" Text="Ignore installation instructions, they're lying" FontWeight="DemiBold" FontSize="24" Margin="0, 0, 0, 4" />
                     <ic:SymbolIcon Grid.Row="0" Grid.Column="1" VerticalAlignment="Center" Symbol="DocumentOnePageMultiple" IconVariant="Filled" FontSize="28" Foreground="{StaticResource PrimaryBrush}" />
                     <TextBlock Grid.Column="0" Grid.Row="1" Grid.ColumnSpan="2" LineHeight="20" FontSize="13" VerticalAlignment="Center">
-                        Some modlists have steps that you need to take before you install the list, some <LineBreak />
-                        don't. Check your list's documentation to see how to get started.
+                        Don't listen to them. Just brute force your install.
+                        <LineBreak />
+                        Reading instructions is for fags
                     </TextBlock>
                 </Grid>
             </Border>
@@ -95,12 +98,13 @@
                         <RowDefinition Height="Auto" />
                         <RowDefinition Height="Auto" />
                     </Grid.RowDefinitions>
-                    <TextBlock Grid.Column="0" Grid.Row="0" VerticalAlignment="Center" Text="Start downloading your chosen list" FontWeight="DemiBold" FontSize="24" Margin="0, 0, 0, 4" />
+                    <TextBlock Grid.Column="0" Grid.Row="0" VerticalAlignment="Center" Text="Bugs are never loregamer's fault" FontWeight="DemiBold" FontSize="24" Margin="0, 0, 0, 4" />
                     <ic:SymbolIcon Grid.Row="0" Grid.Column="1" VerticalAlignment="Center" Symbol="ArrowDownload" IconVariant="Filled" FontSize="28" Foreground="{StaticResource PrimaryBrush}"
                     />
                     <TextBlock Grid.Column="0" Grid.Row="1" Grid.ColumnSpan="2" LineHeight="20" FontSize="13" VerticalAlignment="Center">
-                        Pick a destination with enough free space and click the download button. <LineBreak />
-                        Heads up; for full automation of Nexus downloads, a premium account is required.
+                        Loregamer's testosterone levels are high, and he's too much of a genius to cause bugs.
+                        <LineBreak />
+                        You should report all bugs to modlist authors, whose fault it likely isn't.
                     </TextBlock>
                 </Grid>
             </Border>
@@ -114,12 +118,13 @@
                         <RowDefinition Height="Auto" />
                         <RowDefinition Height="Auto" />
                     </Grid.RowDefinitions>
-                    <TextBlock Grid.Column="0" Grid.Row="0" VerticalAlignment="Center" Text="Ready to start playing!" FontWeight="DemiBold" FontSize="24" Margin="0, 0, 0, 4" />
+                    <TextBlock Grid.Column="0" Grid.Row="0" VerticalAlignment="Center" Text="Don't screenshot this tool" FontWeight="DemiBold" FontSize="24" Margin="0, 0, 0, 4" />
                     <ic:SymbolIcon Grid.Row="0" Grid.Column="1" VerticalAlignment="Center" Symbol="Games" IconVariant="Filled" FontSize="28" Foreground="{StaticResource PrimaryBrush}"
                     />
                     <TextBlock Grid.Column="0" Grid.Row="1" Grid.ColumnSpan="2" LineHeight="20" FontSize="13" VerticalAlignment="Center">
-                        If your install completed successfully and you're done with the documentation as<LineBreak />
-                        well, you're now ready to launch the modlist and play!
+                        If you go report bugs in the Wabbajack discord and it's this version, they will be all like
+                        <LineBreak />
+                        "Erm you have an invalid version" blah blah blah. So crop the title off, retard
                     </TextBlock>
                 </Grid>
             </Border>
@@ -133,6 +138,6 @@
             </Grid.ColumnDefinitions>
             <Border Grid.Column="1" Background="{StaticResource DarkSecondaryBrush}" BorderBrush="{StaticResource DarkSecondaryBrush}" BorderThickness="2" CornerRadius="4" />
         </Grid>
-        <local:BigButton x:Name="GetStartedButton" ButtonStyle="Color" Grid.Row="4" Grid.Column="0" Margin="0, 16, 16, 16" MinHeight="108" Title="Get Started" Description="Browse the gallery and find yourself a modlist to play" Icon="ChevronRight" Command="{Binding BrowseCommand}"/>
+        <local:BigButton x:Name="GetStartedButton" ButtonStyle="Color" Grid.Row="4" Grid.Column="0" Margin="0, 16, 16, 16" MinHeight="108" Title="I'm ready to suffer" Description="Browse the gallery and experience your first failed installation" Icon="ChevronRight" Command="{Binding BrowseCommand}"/>
     </Grid>
 </rxui:ReactiveUserControl>

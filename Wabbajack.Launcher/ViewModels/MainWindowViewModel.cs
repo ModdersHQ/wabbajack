@@ -69,7 +69,9 @@ public class MainWindowViewModel : ViewModelBase
 
                 StatusHistory.Add(s);
             });
-        var tsk = CheckForUpdates();
+        // Disabled update checking for Wabbajack Unlocked fork
+        // var tsk = CheckForUpdates();
+        var tsk = FinishAndExit();
     }
 
     [Reactive] ObservableCollection<string> StatusHistory { get; set; } = new ObservableCollection<string>();
@@ -337,9 +339,9 @@ public class MainWindowViewModel : ViewModelBase
             var data = $"\"{filename}\" %*";
             var file = Path.Combine(Directory.GetCurrentDirectory(), "wabbajack-cli.bat");
             if (File.Exists(file) && await File.ReadAllTextAsync(file) == data) return;
-            var parent = Directory.GetParent(file).FullName;
-            if (!Directory.Exists(file))
-                Directory.CreateDirectory(parent);
+            var parentDir = Directory.GetParent(file);
+            if (parentDir != null && !Directory.Exists(parentDir.FullName))
+                Directory.CreateDirectory(parentDir.FullName);
             await File.WriteAllTextAsync(file, data);
         }
         catch (Exception ex)

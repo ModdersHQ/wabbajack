@@ -102,6 +102,6 @@ public class GalleryFilterSettings
     public string GameType { get; set; }
     public bool IncludeNSFW { get; set; }
     public bool IncludeUnofficial { get; set; }
-    public bool OnlyInstalled { get; set; }
+    public ModListGalleryVM.SortOption SortOption { get; set; } = ModListGalleryVM.SortOption.DateUpdated;
     public string Search { get; set; }
 }

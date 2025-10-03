@@ -63,6 +63,7 @@ public class InstallationVM : ProgressViewModel, ICpuStatusVM
     [Reactive] public ModList ModList { get; set; }
     [Reactive] public ModlistMetadata ModlistMetadata { get; set; }
     [Reactive] public FilePickerVM WabbajackFileLocation { get; set; }
+    [Reactive] public FilePickerVM GameFolderLocation { get; set; }
     [Reactive] public MO2InstallerVM Installer { get; set; }
     [Reactive] public StandardInstaller StandardInstaller { get; set; }
     [Reactive] public BitmapImage ModListImage { get; set; }
@@ -122,6 +123,11 @@ public class InstallationVM : ProgressViewModel, ICpuStatusVM
     [Reactive] public string ExtractingSpeed { get; set; }
     [Reactive] public string DownloadingSpeed { get; set; }
     
+    [Reactive] public bool IgnoreHashMismatches { get; set; }
+
+    [Reactive] public ObservableCollection<SourceGameFolder> SourceGameFolders { get; set; }
+    [Reactive] public bool HasSourceGames { get; set; }
+
     // Command properties
     public ICommand OpenManifestCommand { get; }
     public ICommand OpenReadmeCommand { get; }
@@ -161,6 +167,9 @@ public class InstallationVM : ProgressViewModel, ICpuStatusVM
         Installer = new MO2InstallerVM(this);
         ReadmeBrowser = serviceProvider.GetRequiredService<WebView2>();
 
+        SourceGameFolders = new ObservableCollection<SourceGameFolder>();
+        HasSourceGames = false;
+
         CancelCommand = ReactiveCommand.Create(CancelInstall, this.WhenAnyValue(vm => vm.LoadingLock.IsNotLoading));
         EditInstallDetailsCommand = ReactiveCommand.Create(() =>
         {
@@ -192,6 +201,13 @@ public class InstallationVM : ProgressViewModel, ICpuStatusVM
             PromptTitle = "Select a modlist to install"
         };
         WabbajackFileLocation.Filters.Add(new CommonFileDialogFilter("Wabbajack modlist", "*.wabbajack"));
+        
+        GameFolderLocation = new FilePickerVM
+        {
+            ExistCheckOption = FilePickerVM.CheckOptions.On,
+            PathType = FilePickerVM.PathTypeOptions.Folder,
+            PromptTitle = "Select the game folder"
+        };
         
         OpenLogFolderCommand = ReactiveCommand.Create(() =>
         {
@@ -271,14 +287,17 @@ public class InstallationVM : ProgressViewModel, ICpuStatusVM
             */
             
             this.WhenAny(vm => vm.WabbajackFileLocation.ValidationResult)
-                .CombineLatest<ValidationResult, ValidationResult, ValidationResult, AbsolutePath, AbsolutePath, AbsolutePath>(this.WhenAny(vm => vm.Installer.DownloadLocation.ValidationResult),
+                .CombineLatest<ValidationResult, ValidationResult, ValidationResult, ValidationResult, AbsolutePath, AbsolutePath, AbsolutePath, AbsolutePath>(
+                    this.WhenAny(vm => vm.Installer.DownloadLocation.ValidationResult),
                     this.WhenAny(vm => vm.Installer.Location.ValidationResult),
+                    this.WhenAny(vm => vm.GameFolderLocation.ValidationResult),
                     this.WhenAny(vm => vm.WabbajackFileLocation.TargetPath),
                     this.WhenAny(vm => vm.Installer.Location.TargetPath),
-                    this.WhenAny(vm => vm.Installer.DownloadLocation.TargetPath))
+                    this.WhenAny(vm => vm.Installer.DownloadLocation.TargetPath),
+                    this.WhenAny(vm => vm.GameFolderLocation.TargetPath))
                 .Select(t =>
                 {
-                    var errors = (new[] { t.First, t.Second, t.Third})
+                    var errors = (new[] { t.First, t.Second, t.Third, t.Fourth})
                         .Where(t => t.Failed)
                         .Concat(Validate())
                         .ToArray();
@@ -311,6 +330,13 @@ public class InstallationVM : ProgressViewModel, ICpuStatusVM
             this.WhenAnyValue(vm => vm.Installer.Location.TargetPath)
                 .Select(x => x.PathParts.Any() ? x.Combine("downloads") : x)
                 .Subscribe(x => Installer.DownloadLocation.TargetPath = x)
+                .DisposeWith(disposables);
+                
+            this.WhenAnyValue(vm => vm.IgnoreHashMismatches)
+                .Subscribe(ignore => {
+                    if (StandardInstaller != null)
+                        StandardInstaller.SetIgnoreHashMismatches(ignore);
+                })
                 .DisposeWith(disposables);
         });
 
@@ -380,6 +406,12 @@ public class InstallationVM : ProgressViewModel, ICpuStatusVM
     {
         if (!WabbajackFileLocation.TargetPath.FileExists())
             yield return ValidationResult.Fail("Wabbajack modlist file does not exist");
+            
+        var gamePath = GameFolderLocation.TargetPath;
+        if (gamePath.Depth <= 1)
+            yield return ValidationResult.Fail("Please specify a game folder location");
+        if (!gamePath.DirectoryExists())
+            yield return ValidationResult.Fail("The specified game folder does not exist");
 
         var downloadPath = Installer.DownloadLocation.TargetPath;
         if (downloadPath.Depth <= 1)
@@ -550,7 +582,8 @@ public class InstallationVM : ProgressViewModel, ICpuStatusVM
             }
             
             PopulateSlideShow(ModList);
-            
+            PopulateSourceGameFolders(ModList);
+
             ll.Succeed();
             await _settingsManager.Save(LastLoadedModlist, path);
         }
@@ -619,27 +652,57 @@ public class InstallationVM : ProgressViewModel, ICpuStatusVM
 
             try
             {
+                // Set the game location in the locator
+                if (_gameLocator is UserSpecifiedGameLocator userLocator)
+                {
+                    userLocator.SetGameLocation(GameFolderLocation.TargetPath);
+
+                    // Also set locations for source games if provided
+                    foreach (var sourceFolder in SourceGameFolders)
+                    {
+                        if (sourceFolder.GamePath != default && sourceFolder.GamePath.DirectoryExists())
+                        {
+                            userLocator.SetGameLocation(sourceFolder.Game, sourceFolder.GamePath);
+                        }
+                    }
+                }
+
                 var canSource = GameRegistry.Games[ModList.GameType].CanSourceFrom ?? Array.Empty<Game>();
                 var namedgames = ModList.OtherGames;
-                var validgames = Array.Empty<Game>();
+                var validgames = new List<Game>();
+
+                // Include games from modlist
                 foreach (var g in namedgames)
                 {
                     if (canSource.Contains(g) && GameRegistry.Games.ContainsKey(g))
                         validgames.Add(g);
                 }
+
+                // Also include any source games that the user has provided paths for
+                foreach (var sourceFolder in SourceGameFolders)
+                {
+                    if (sourceFolder.GamePath != default && sourceFolder.GamePath.DirectoryExists())
+                    {
+                        if (!validgames.Contains(sourceFolder.Game))
+                        {
+                            validgames.Add(sourceFolder.Game);
+                        }
+                    }
+                }
+
                 var cfg = new InstallerConfiguration
                 {
                     Game = ModList.GameType,
-                    OtherGames = validgames,
+                    OtherGames = validgames.ToArray(),
                     Downloads = Installer.DownloadLocation.TargetPath,
                     Install = Installer.Location.TargetPath,
                     ModList = ModList,
                     ModlistArchive = WabbajackFileLocation.TargetPath,
                     SystemParameters = _parametersConstructor.Create(),
-                    GameFolder = _gameLocator.GameLocation(ModList.GameType)
+                    GameFolder = GameFolderLocation.TargetPath
                 };
                 StandardInstaller = StandardInstaller.Create(_serviceProvider, cfg);
-
+                StandardInstaller.SetIgnoreHashMismatches(IgnoreHashMismatches);
 
                 StandardInstaller.OnStatusUpdate = update =>
                 {
@@ -858,6 +921,35 @@ public class InstallationVM : ProgressViewModel, ICpuStatusVM
         //SlideShowImage = ModListImage;
     }
 
+    private void PopulateSourceGameFolders(ModList modList)
+    {
+        SourceGameFolders.Clear();
+
+        if (modList == null || !GameRegistry.Games.ContainsKey(modList.GameType))
+        {
+            HasSourceGames = false;
+            return;
+        }
+
+        var gameMetadata = GameRegistry.Games[modList.GameType];
+        var canSourceFrom = gameMetadata.CanSourceFrom ?? Array.Empty<Game>();
+
+        foreach (var sourceGame in canSourceFrom)
+        {
+            if (GameRegistry.Games.ContainsKey(sourceGame))
+            {
+                var sourceGameMetadata = GameRegistry.Games[sourceGame];
+                var folder = new SourceGameFolder(sourceGame, sourceGameMetadata.HumanFriendlyGameName);
+
+                // Don't auto-fill - leave it empty for manual user input
+                // folder.FilePicker.TargetPath remains default/empty
+
+                SourceGameFolders.Add(folder);
+            }
+        }
+
+        HasSourceGames = SourceGameFolders.Count > 0;
+    }
 
     private async Task PopulateNextModSlide(ModList modList)
     {
@@ -882,4 +974,26 @@ public class InstallationVM : ProgressViewModel, ICpuStatusVM
         }
     }
 
+}
+
+public class SourceGameFolder : ViewModel
+{
+    [Reactive] public Game Game { get; set; }
+    [Reactive] public string GameName { get; set; }
+    public AbsolutePath GamePath => FilePicker?.TargetPath ?? default;
+    [Reactive] public string ToolTip { get; set; }
+    [Reactive] public FilePickerVM FilePicker { get; set; }
+
+    public SourceGameFolder(Game game, string gameName)
+    {
+        Game = game;
+        GameName = gameName;
+        ToolTip = $"Path to the folder where {gameName} is installed (optional)";
+        FilePicker = new FilePickerVM
+        {
+            ExistCheckOption = FilePickerVM.CheckOptions.On,
+            PathType = FilePickerVM.PathTypeOptions.Folder,
+            PromptTitle = $"Select {gameName} folder"
+        };
+    }
 }

@@ -68,11 +68,29 @@ public class IndexRoot
         return result;
     }
 
-    public VirtualFile FileForArchiveHashPath(HashRelativePath argArchiveHashPath)
+    public VirtualFile? FileForArchiveHashPath(HashRelativePath argArchiveHashPath)
     {
-        var cur = ByHash[argArchiveHashPath.Hash].First(f => f.Parent == null);
-        return argArchiveHashPath.Parts.Aggregate(cur,
-            (current, itm) => ByName[itm].First(f => f.Parent == current));
+        try
+        {
+            if (!ByHash.Contains(argArchiveHashPath.Hash))
+                return null;
+                
+            var cur = ByHash[argArchiveHashPath.Hash].FirstOrDefault(f => f.Parent == null);
+            if (cur == null)
+                return null;
+                
+            return argArchiveHashPath.Parts.Aggregate(cur,
+                (current, itm) => {
+                    if (!ByName.Contains(itm))
+                        return null;
+                    return ByName[itm].FirstOrDefault(f => f.Parent == current);
+                });
+        }
+        catch
+        {
+            // If we can't find the file by hash path (like Readme.txt), just return null
+            return null;
+        }
     }
 
     public static class EmptyLookup<TKey, TElement>

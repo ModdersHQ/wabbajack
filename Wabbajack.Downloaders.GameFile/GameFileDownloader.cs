@@ -1,4 +1,6 @@
-﻿using Wabbajack.Downloaders.Interfaces;
+﻿// See docs/GameFilesChanges.md for details on the modification to Verify method
+
+using Wabbajack.Downloaders.Interfaces;
 using Wabbajack.DTOs;
 using Wabbajack.DTOs.DownloadStates;
 using Wabbajack.DTOs.Validation;
@@ -55,8 +57,7 @@ public class GameFileDownloader : ADownloader<GameFileSource>
         CancellationToken token)
     {
         var fp = archiveState.GameFile.RelativeTo(_locator.GameLocation(archiveState.Game));
-        if (!fp.FileExists()) return false;
-        return await _hashCache.FileHashCachedAsync(fp, token) == archive.Hash;
+        return fp.FileExists();
     }
 
     public override IEnumerable<string> MetaIni(Archive a, GameFileSource state)

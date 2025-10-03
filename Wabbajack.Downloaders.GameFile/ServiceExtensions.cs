@@ -18,4 +18,9 @@ public static class ServiceExtensions
     {
         return services.AddAllSingleton<IGameLocator, GameLocator>();
     }
+    
+    public static IServiceCollection AddUserSpecifiedGameLocator(this IServiceCollection services)
+    {
+        return services.AddAllSingleton<IGameLocator, UserSpecifiedGameLocator>();
+    }
 }

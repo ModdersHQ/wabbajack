@@ -27,10 +27,10 @@ public class Install
     private readonly IServiceProvider _serviceProvider;
     private readonly DTOSerializer _dtos;
     private readonly FileHashCache _cache;
-    private readonly GameLocator _gameLocator;
+    private readonly IGameLocator _gameLocator;
 
     public Install(ILogger<Install> logger, Client wjClient, DownloadDispatcher dispatcher, DTOSerializer dtos, 
-        FileHashCache cache, GameLocator gameLocator, IServiceProvider serviceProvider)
+        FileHashCache cache, IGameLocator gameLocator, IServiceProvider serviceProvider)
     {
         _logger = logger;
         _wjClient = wjClient;
@@ -46,10 +46,11 @@ public class Install
         new OptionDefinition(typeof(AbsolutePath), "w", "wabbajack", "Wabbajack file"),
         new OptionDefinition(typeof(string), "m", "machineUrl", "Machine url to download"),
         new OptionDefinition(typeof(AbsolutePath), "o", "output", "Output path"),
-        new OptionDefinition(typeof(AbsolutePath), "d", "downloads", "Downloads path")
+        new OptionDefinition(typeof(AbsolutePath), "d", "downloads", "Downloads path"),
+        new OptionDefinition(typeof(AbsolutePath), "g", "gamefolder", "Game folder path")
     });
 
-    internal async Task<int> Run(AbsolutePath wabbajack, AbsolutePath output, AbsolutePath downloads, string machineUrl, CancellationToken token)
+    internal async Task<int> Run(AbsolutePath wabbajack, AbsolutePath output, AbsolutePath downloads, string machineUrl, AbsolutePath gamefolder, CancellationToken token)
     {
         if (!string.IsNullOrEmpty(machineUrl))
         {
@@ -58,6 +59,12 @@ public class Install
         }
 
         var modlist = await StandardInstaller.LoadFromFile(_dtos, wabbajack);
+        
+        // Set the game folder in the UserSpecifiedGameLocator if available
+        if (_gameLocator is UserSpecifiedGameLocator userLocator)
+        {
+            userLocator.SetGameLocation(gamefolder);
+        }
 
         var installer = StandardInstaller.Create(_serviceProvider, new InstallerConfiguration
         {
@@ -66,7 +73,7 @@ public class Install
             ModList = modlist,
             Game = modlist.GameType,
             ModlistArchive = wabbajack,
-            GameFolder = _gameLocator.GameLocation(modlist.GameType)
+            GameFolder = gamefolder.DirectoryExists() ? gamefolder : _gameLocator.GameLocation(modlist.GameType)
         });
 
         var result = await installer.Begin(token);

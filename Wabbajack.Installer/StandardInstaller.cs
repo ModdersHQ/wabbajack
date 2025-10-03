@@ -38,6 +38,7 @@ namespace Wabbajack.Installer;
 
 public class StandardInstaller : AInstaller<StandardInstaller>
 {
+    public bool IgnoreHashMismatches { get; set; } = false;
 
     public StandardInstaller(ILogger<StandardInstaller> logger,
         InstallerConfiguration config,
@@ -65,6 +66,11 @@ public class StandardInstaller : AInstaller<StandardInstaller>
             provider.GetRequiredService<Client>(),
             provider.GetRequiredService<IImageLoader>());
     }
+    
+    public void SetIgnoreHashMismatches(bool ignore)
+    {
+        IgnoreHashMismatches = ignore;
+    }
 
     public override async Task<InstallResult> Begin(CancellationToken token)
     {
@@ -73,6 +79,11 @@ public class StandardInstaller : AInstaller<StandardInstaller>
         await _wjClient.SendMetric(MetricNames.BeginInstall, ModList.Name);
         NextStep(Consts.StepPreparing, "Configuring Installer", 0);
         _logger.LogInformation("Configuring Processor");
+
+        if (IgnoreHashMismatches)
+        {
+            _logger.LogInformation("Ignore Hash Mismatches is enabled - will use less strict hash checking");
+        }
 
         if (_configuration.GameFolder == default)
             _configuration.GameFolder = _gameLocator.GameLocation(_configuration.Game);
@@ -125,14 +136,58 @@ public class StandardInstaller : AInstaller<StandardInstaller>
         if (token.IsCancellationRequested) return InstallResult.Cancelled;
 
         var missing = ModList.Archives.Where(a => !HashedArchives.ContainsKey(a.Hash)).ToList();
-        if (missing.Count > 0)
+        var missingNonGameFiles = missing.Where(a => !(a.State is GameFileSource)).ToList();
+        
+        if (missingNonGameFiles.Count > 0)
         {
             foreach (var a in missing)
                 _logger.LogCritical("Unable to download {name} ({primaryKeyString})", a.Name,
                     a.State.PrimaryKeyString);
-            _logger.LogCritical("Cannot continue, was unable to download one or more archives");
-
-            return InstallResult.DownloadFailed;
+                
+            // If we're ignoring hash mismatches, we'll try one more thing - directly copy files by name
+            if (IgnoreHashMismatches)
+            {
+                _logger.LogInformation("Attempting to match missing files by name due to Ignore Hash Mismatches setting");
+                var downloadedFiles = _configuration.Downloads.EnumerateFiles().ToList();
+                var filesByName = downloadedFiles.ToDictionary(f => f.FileName.ToString(), f => f);
+                var stillMissing = new List<Archive>();
+                
+                foreach (var archive in missingNonGameFiles)
+                {
+                    if (filesByName.TryGetValue(archive.Name, out var file))
+                    {
+                        _logger.LogInformation("Found file with matching name: {FileName} for archive: {ArchiveName}", 
+                            file.FileName.ToString(), archive.Name);
+                        HashedArchives[archive.Hash] = file;
+                    }
+                    else
+                    {
+                        stillMissing.Add(archive);
+                    }
+                }
+                
+                if (stillMissing.Count > 0)
+                {
+                    _logger.LogCritical("Still missing {Count} files after name matching", stillMissing.Count);
+                    _logger.LogCritical("Cannot continue, was unable to download one or more archives");
+                    return InstallResult.DownloadFailed;
+                }
+                else
+                {
+                    _logger.LogInformation("Successfully matched all missing files by name");
+                }
+            }
+            else
+            {
+                _logger.LogCritical("Cannot continue, was unable to download one or more archives");
+                return InstallResult.DownloadFailed;
+            }
+        }
+        else if (missing.Count > 0)
+        {
+            // Log missing game files but continue
+            foreach (var a in missing)
+                _logger.LogWarning("Missing game file {name}. This could be caused by missing DLC or a modified installation, but installation will continue.", a.Name);
         }
 
         await ExtractModlist(token);

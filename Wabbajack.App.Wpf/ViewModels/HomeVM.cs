@@ -23,7 +23,7 @@ public class HomeVM : ViewModel, ICanGetHelpVM
         _logger = logger;
         _wjClient = wjClient;
         BrowseCommand = ReactiveCommand.Create(() => NavigateToGlobal.Send(ScreenType.ModListGallery));
-        GetHelpCommand = ReactiveCommand.Create(() => Process.Start(new ProcessStartInfo("https://wiki.wabbajack.org/") { UseShellExecute = true }));
+        GetHelpCommand = ReactiveCommand.Create(() => Process.Start(new ProcessStartInfo("https://my.clevelandclinic.org/health/diseases/21753-hair-loss") { UseShellExecute = true }));
         VisitModlistWizardCommand = ReactiveCommand.Create(() => Process.Start(new ProcessStartInfo(Consts.WabbajackModlistWizardUri.ToString()) { UseShellExecute = true }));
         LoadModLists().FireAndForget();
     }

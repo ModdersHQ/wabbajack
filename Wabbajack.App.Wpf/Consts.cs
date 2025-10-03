@@ -12,7 +12,7 @@ public static class Consts
     public static Uri WabbajackBuildServerUri => new("https://build.wabbajack.org");
     public static Uri WabbajackModlistWizardUri => new("https://wizard.wabbajack.org");
     public static Uri WabbajackGithubUri => new("https://github.com/wabbajack-tools/wabbajack");
-    public static Uri WabbajackDiscordUri => new("https://discord.gg/wabbajack");
+    public static Uri WabbajackDiscordUri => new("https://rpghq.org/forums/viewtopic.php?t=3479-wabbajack-unlocked-2-0-modding-tools");
     public static Uri WabbajackPatreonUri => new("https://www.patreon.com/user?u=11907933");
     public static Uri WabbajackWikiUri => new("https://wiki.wabbajack.org");
     public static Uri TlsInfoUri => new("https://www.howsmyssl.com/a/check");
