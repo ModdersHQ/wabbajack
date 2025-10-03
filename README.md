@@ -10,7 +10,7 @@ Wabbajack, but **UNLOCKED**
 
 ## Download
 
-To download, visit the [Releases page](https://github.com/loregamer/wabbajack-unlocked/releases) and downloaded the latest zip file.
+To download, visit the [Releases page](https://github.com/moddershq/wabbajack-unlocked/releases) and downloaded the latest zip file.
 
 ## Building (for developers)
 
